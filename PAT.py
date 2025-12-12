@@ -7,6 +7,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich import box
 
+
 def _get_status_color(status_code: int) -> str:
     if 200 <= status_code < 300:
         return "green"
@@ -16,14 +17,12 @@ def _get_status_color(status_code: int) -> str:
         return "red"
     return "white"
 
+
 def print_info(title: str, info: Dict[str, Any]):
     console = Console()
 
     table = Table(
-        show_header=True,
-        header_style="magenta", 
-        box=box.ROUNDED,
-        expand=True
+        show_header=True, header_style="magenta", box=box.ROUNDED, expand=True
     )
     table.add_column("Key", style="dim", width=20)
     table.add_column("Value")
@@ -32,6 +31,7 @@ def print_info(title: str, info: Dict[str, Any]):
         table.add_row(str(k), str(v))
 
     console.print(Panel(table, title=title, border_style="green", expand=True))
+
 
 def _deep_get(obj: Any, path: str) -> Any:
     keys = path.split(".")
@@ -47,24 +47,31 @@ def _deep_get(obj: Any, path: str) -> Any:
             break
     return cur
 
+
 def run_test(
-    description: str,
-    response: Tuple[str, Any, int, Optional[str]],
-    *extract_paths: str
+    description: str, response: Tuple[str, Any, int, Optional[str]], *extract_paths: str
 ) -> Any:
     console = Console()
     status, content, status_code, _ = response
     color = _get_status_color(status_code)
 
-    title = f"""{description}: {status} [bold {color}]HTTP {status_code}[/bold {color}]"""
+    title = (
+        f"""{description}: {status} [bold {color}]HTTP {status_code}[/bold {color}]"""
+    )
 
     display_content = content
-    if not extract_paths and isinstance(content, dict) and 'buckets' in content:
-        display_content = content['buckets']
+    if not extract_paths and isinstance(content, dict) and "buckets" in content:
+        display_content = content["buckets"]
 
     if isinstance(display_content, (dict, list)):
         json_str = json.dumps(display_content, indent=4, ensure_ascii=False)
-        body = Syntax(json_str, "json", theme="dracula", line_numbers=True, background_color="default")
+        body = Syntax(
+            json_str,
+            "json",
+            theme="dracula",
+            line_numbers=True,
+            background_color="default",
+        )
     else:
         body = str(display_content)
 
@@ -76,18 +83,29 @@ def run_test(
     if len(extract_paths) == 1:
         value = _deep_get(content, extract_paths[0])
         if value is None:
-            console.print(f"[bold red]Warning:[/bold red] Could not extract '{extract_paths[0]}' from response.")
+            console.print(
+                f"[bold red]Warning:[/bold red] Could not extract '{extract_paths[0]}' from response."
+            )
         return value
     values = []
     for path in extract_paths:
         v = _deep_get(content, path)
         if v is None:
-            console.print(f"[bold red]Warning:[/bold red] Could not extract '{path}' from response.")
+            console.print(
+                f"[bold red]Warning:[/bold red] Could not extract '{path}' from response."
+            )
         values.append(v)
     return tuple(values)
 
-def post(url: str, body: Optional[Union[str, Dict[str, Any], list]] = None, key: Optional[str] = None,
-         should_fail: bool = False, extract: Optional[str] = None, headers: Optional[Dict[str, str]] = None) -> Tuple[str, Any, int, Optional[str]]:
+
+def post(
+    url: str,
+    body: Optional[Union[str, Dict[str, Any], list]] = None,
+    key: Optional[str] = None,
+    should_fail: bool = False,
+    extract: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Tuple[str, Any, int, Optional[str]]:
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
@@ -111,15 +129,36 @@ def post(url: str, body: Optional[Union[str, Dict[str, Any], list]] = None, key:
                 except ValueError:
                     return "✅", {"response": resp.text}, status_code, extract
         else:
+            try:
+                error_content = resp.json()
+            except ValueError:
+                error_content = resp.text
+
             if should_fail:
-                return "✅", {"error": f"状态码异常: {status_code}"}, status_code, extract
+                return (
+                    "✅",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
             else:
-                return "❌", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "❌",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
     except Exception as e:
         return ("❌" if not should_fail else "✅"), str(e), 999, extract
 
 
-def delete(url: str, key: Optional[str] = None, should_fail: bool = False, extract: Optional[str] = None, headers: Optional[Dict[str, str]] = None) -> Tuple[str, Any, int, Optional[str]]:
+def delete(
+    url: str,
+    key: Optional[str] = None,
+    should_fail: bool = False,
+    extract: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Tuple[str, Any, int, Optional[str]]:
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
@@ -137,15 +176,37 @@ def delete(url: str, key: Optional[str] = None, should_fail: bool = False, extra
                 except ValueError:
                     return "✅", {"response": resp.text}, status_code, extract
         else:
+            try:
+                error_content = resp.json()
+            except ValueError:
+                error_content = resp.text
+
             if should_fail:
-                return "✅", {"error": f"状态码异常: {status_code}"}, status_code, extract
+                return (
+                    "✅",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
             else:
-                return "❌", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "❌",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
     except Exception as e:
         return ("❌" if not should_fail else "✅"), str(e), 999, extract
 
 
-def put(url: str, body: Optional[Union[str, Dict[str, Any], list]] = None, key: Optional[str] = None, should_fail: bool = False, extract: Optional[str] = None, headers: Optional[Dict[str, str]] = None) -> Tuple[str, Any, int, Optional[str]]:
+def put(
+    url: str,
+    body: Optional[Union[str, Dict[str, Any], list]] = None,
+    key: Optional[str] = None,
+    should_fail: bool = False,
+    extract: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Tuple[str, Any, int, Optional[str]]:
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
@@ -169,15 +230,36 @@ def put(url: str, body: Optional[Union[str, Dict[str, Any], list]] = None, key: 
                 except ValueError:
                     return "✅", {"response": resp.text}, status_code, extract
         else:
+            try:
+                error_content = resp.json()
+            except ValueError:
+                error_content = resp.text
+
             if should_fail:
-                return "✅", {"error": f"状态码异常: {status_code}"}, status_code, extract
+                return (
+                    "✅",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
             else:
-                return "❌", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "❌",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
     except Exception as e:
         return ("❌" if not should_fail else "✅"), str(e), 999, extract
 
 
-def get(url: str, key: Optional[str] = None, should_fail: bool = False, extract: Optional[str] = None, headers: Optional[Dict[str, str]] = None) -> Tuple[str, Any, int, Optional[str]]:
+def get(
+    url: str,
+    key: Optional[str] = None,
+    should_fail: bool = False,
+    extract: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Tuple[str, Any, int, Optional[str]]:
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
@@ -187,14 +269,34 @@ def get(url: str, key: Optional[str] = None, should_fail: bool = False, extract:
         resp = requests.get(url, headers=request_headers, timeout=10)
         status_code = resp.status_code
         if not (200 <= status_code < 300):
+            try:
+                error_content = resp.json()
+            except ValueError:
+                error_content = resp.text
+
             if should_fail:
-                return "✅", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "✅",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
             else:
-                return "❌", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "❌",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
         try:
             json_data = resp.json()
         except ValueError:
-            return ("❌" if not should_fail else "✅"), "响应不是有效的JSON格式", status_code, extract
+            return (
+                ("❌" if not should_fail else "✅"),
+                "响应不是有效的JSON格式",
+                status_code,
+                extract,
+            )
 
         if should_fail:
             return "❌", "期望失败但成功", status_code, extract
@@ -204,13 +306,14 @@ def get(url: str, key: Optional[str] = None, should_fail: bool = False, extract:
         return ("❌" if not should_fail else "✅"), str(e), 999, extract
 
 
-def patch(url: str,
-          body: Optional[Union[str, Dict[str, Any], list]] = None,
-          key: Optional[str] = None,
-          should_fail: bool = False,
-          extract: Optional[str] = None,
-          headers: Optional[Dict[str, str]] = None
-          ) -> Tuple[str, Any, int, Optional[str]]:
+def patch(
+    url: str,
+    body: Optional[Union[str, Dict[str, Any], list]] = None,
+    key: Optional[str] = None,
+    should_fail: bool = False,
+    extract: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Tuple[str, Any, int, Optional[str]]:
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
@@ -236,20 +339,36 @@ def patch(url: str,
             except ValueError:
                 return "✅", {"response": resp.text}, status_code, extract
         else:
+            try:
+                error_content = resp.json()
+            except ValueError:
+                error_content = resp.text
+
             if should_fail:
-                return "✅", {"error": f"状态码异常: {status_code}"}, status_code, extract
-            return "❌", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "✅",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
+            return (
+                "❌",
+                {"error": f"状态码异常: {status_code}", "details": error_content},
+                status_code,
+                extract,
+            )
 
     except Exception as e:
         return ("❌" if not should_fail else "✅"), str(e), 999, extract
 
 
-def option(url: str,
-           key: Optional[str] = None,
-           should_fail: bool = False,
-           extract: Optional[str] = None,
-           headers: Optional[Dict[str, str]] = None
-           ) -> Tuple[str, Any, int, Optional[str]]:
+def option(
+    url: str,
+    key: Optional[str] = None,
+    should_fail: bool = False,
+    extract: Optional[str] = None,
+    headers: Optional[Dict[str, str]] = None,
+) -> Tuple[str, Any, int, Optional[str]]:
     request_headers = {"Content-Type": "application/json"}
     if headers:
         request_headers.update(headers)
@@ -271,15 +390,36 @@ def option(url: str,
                 # 无 body 时把响应头里常用 CORS 信息带回来即可
                 json_data = {
                     "allow": resp.headers.get("Allow"),
-                    "access_control_allow_methods": resp.headers.get("Access-Control-Allow-Methods"),
-                    "access_control_allow_headers": resp.headers.get("Access-Control-Allow-Headers"),
-                    "access_control_max_age": resp.headers.get("Access-Control-Max-Age"),
+                    "access_control_allow_methods": resp.headers.get(
+                        "Access-Control-Allow-Methods"
+                    ),
+                    "access_control_allow_headers": resp.headers.get(
+                        "Access-Control-Allow-Headers"
+                    ),
+                    "access_control_max_age": resp.headers.get(
+                        "Access-Control-Max-Age"
+                    ),
                 }
             return "✅", json_data, status_code, extract
         else:
+            try:
+                error_content = resp.json()
+            except ValueError:
+                error_content = resp.text
+
             if should_fail:
-                return "✅", {"error": f"状态码异常: {status_code}"}, status_code, extract
-            return "❌", f"状态码异常: {status_code}", status_code, extract
+                return (
+                    "✅",
+                    {"error": f"状态码异常: {status_code}", "details": error_content},
+                    status_code,
+                    extract,
+                )
+            return (
+                "❌",
+                {"error": f"状态码异常: {status_code}", "details": error_content},
+                status_code,
+                extract,
+            )
 
     except Exception as e:
         return ("❌" if not should_fail else "✅"), str(e), 999, extract
