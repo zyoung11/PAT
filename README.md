@@ -13,6 +13,8 @@ PAT 是一个基于 Python 的 API 测试框架，提供了简洁的语法和丰
 - 丰富的终端输出，使用 Rich 库提供美观的格式化显示
 - 自定义请求头支持
 - 错误处理和异常捕获
+- 统一的错误显示格式，支持 JSON 美化显示
+- 测试结果自动收集和汇总显示
 - 简洁的 API 设计，易于编写和维护测试用例
 
 ## 安装
@@ -198,6 +200,16 @@ print_info(
 )
 ```
 
+### 13. 显示测试结果汇总
+
+```python
+# ---------- 13. 显示测试结果汇总 ----------
+show_result()
+
+# 可以自定义标题
+show_result("API测试结果汇总")
+```
+
 ## 函数参考
 
 ### HTTP 方法函数
@@ -228,6 +240,28 @@ print_info(title, info_dict)
 - •`title`: 信息面板的标题
 - •`info_dict`: 要显示的键值对字典
 
+### show_result 函数
+
+```python
+show_result(title="测试结果汇总")
+```
+
+- •`title`: 汇总面板的标题（可选，默认为"测试结果汇总"）
+- 自动收集所有 `run_test` 函数的测试结果
+- 以表格形式显示测试描述和结果（成功/失败）
+- 成功显示为绿色✅，失败显示为红色❌
+- 自动统计成功和失败的数量
+- 调用后自动清空测试结果记录
+
+### clear_test_results 函数
+
+```python
+clear_test_results()
+```
+
+- 手动清空测试结果记录
+- 用于分组测试或重置测试状态
+
 ## 响应数据提取语法
 
 使用点号表示法访问嵌套的 JSON 字段：
@@ -246,6 +280,21 @@ print_info(title, info_dict)
 - •网络连接异常
 - •数据提取路径不存在
 
+### 错误显示格式
+
+所有错误情况都使用统一的显示格式：
+
+```json
+{
+  "error": "错误描述",
+  "details": "错误详情或响应内容"
+}
+```
+
+- 当 `should_fail=True` 但请求成功时，显示为失败并包含完整的响应内容
+- 错误详情会自动解析 JSON 并美化显示
+- 异常情况也会使用相同的格式
+
 ## 运行测试
 
 保存测试文件后，直接运行：
@@ -258,6 +307,33 @@ uv run my_test.py
 
 ## 最佳实践
 
-1. **清晰的描述**: 为每个测试步骤提供有意义的描述
+1. **清晰的描述**: 为每个测试步骤提供有意义的描述，便于在结果汇总中识别
 2. **错误处理**: 合理使用 `should_fail` 参数来验证错误场景
 3. **结果验证**: 使用 `print_info` 输出关键测试数据用于验证
+4. **结果汇总**: 使用 `show_result` 函数查看所有测试的执行结果
+5. **循环测试**: 在循环中使用动态描述确保每个测试有唯一标识
+6. **分组测试**: 使用 `clear_test_results` 进行测试分组和结果管理
+
+## 循环测试示例
+
+```python
+# 批量测试多个用户
+user_ids = [1, 2, 3, 999]
+for user_id in user_ids:
+    should_fail = (user_id == 999)
+    run_test(
+        f"测试用户 {user_id}",
+        get(f"https://api.example.com/users/{user_id}", should_fail=should_fail)
+    )
+
+show_result("用户API批量测试结果")
+```
+
+## 导入语句
+
+```python
+from PAT import (
+    get, post, put, patch, delete, option,  # HTTP方法
+    run_test, print_info, show_result, clear_test_results  # 测试函数
+)
+```

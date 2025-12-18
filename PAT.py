@@ -7,6 +7,9 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich import box
 
+# 全局变量存储测试结果
+_test_results: Dict[str, Tuple[str, bool]] = {}
+
 
 def _get_status_color(status_code: int) -> str:
     if 200 <= status_code < 300:
@@ -31,6 +34,46 @@ def print_info(title: str, info: Dict[str, Any]):
         table.add_row(str(k), str(v))
 
     console.print(Panel(table, title=title, border_style="green", expand=True))
+
+
+def show_result(title: str = "测试结果汇总"):
+    if not _test_results:
+        console = Console()
+        console.print("[yellow]没有测试结果可显示[/yellow]")
+        return
+
+    console = Console()
+
+    table = Table(
+        show_header=True, header_style="magenta", box=box.ROUNDED, expand=True
+    )
+    table.add_column("测试描述", style="dim", width=30)
+    table.add_column("结果", width=10)
+
+    success_count = 0
+    fail_count = 0
+
+    for description, (status, is_success) in _test_results.items():
+        if is_success:
+            table.add_row(description, f"[green]{status} 成功[/green]")
+            success_count += 1
+        else:
+            table.add_row(description, f"[red]{status} 失败[/red]")
+            fail_count += 1
+
+    table.add_row("", "")
+    table.add_row(
+        "[bold]总计[/bold]",
+        f"[green]成功: {success_count}[/green] | [red]失败: {fail_count}[/red]",
+    )
+
+    console.print(Panel(table, title=title, border_style="cyan", expand=True))
+
+    _test_results.clear()
+
+
+def clear_test_results():
+    _test_results.clear()
 
 
 def _deep_get(obj: Any, path: str) -> Any:
@@ -77,6 +120,9 @@ def run_test(
 
     console.print(Panel(body, title=title, border_style="blue", expand=True))
     console.print()
+
+    is_success = status == "✅"
+    _test_results[description] = (status, is_success)
 
     if not extract_paths:
         return None
