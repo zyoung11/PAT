@@ -122,7 +122,16 @@ def post(
         status_code = resp.status_code
         if 200 <= status_code < 300:
             if should_fail:
-                return "❌", f"期望失败但成功: {status_code}", status_code, extract
+                try:
+                    details = resp.json()
+                except ValueError:
+                    details = resp.text
+                return (
+                    "❌",
+                    {"error": f"期望失败但成功: {status_code}", "details": details},
+                    status_code,
+                    extract,
+                )
             else:
                 try:
                     return "✅", resp.json(), status_code, extract
@@ -149,7 +158,10 @@ def post(
                     extract,
                 )
     except Exception as e:
-        return ("❌" if not should_fail else "✅"), str(e), 999, extract
+        if should_fail:
+            return "✅", {"error": "期望失败且成功", "details": str(e)}, 999, extract
+        else:
+            return "❌", {"error": "请求异常", "details": str(e)}, 999, extract
 
 
 def delete(
@@ -169,7 +181,16 @@ def delete(
         status_code = resp.status_code
         if 200 <= status_code < 300:
             if should_fail:
-                return "❌", f"期望失败但成功: {status_code}", status_code, extract
+                try:
+                    details = resp.json()
+                except ValueError:
+                    details = resp.text
+                return (
+                    "❌",
+                    {"error": f"期望失败但成功: {status_code}", "details": details},
+                    status_code,
+                    extract,
+                )
             else:
                 try:
                     return "✅", resp.json(), status_code, extract
@@ -196,7 +217,10 @@ def delete(
                     extract,
                 )
     except Exception as e:
-        return ("❌" if not should_fail else "✅"), str(e), 999, extract
+        if should_fail:
+            return "✅", {"error": "期望失败且成功", "details": str(e)}, 999, extract
+        else:
+            return "❌", {"error": "请求异常", "details": str(e)}, 999, extract
 
 
 def put(
@@ -223,7 +247,16 @@ def put(
         status_code = resp.status_code
         if 200 <= status_code < 300:
             if should_fail:
-                return "❌", f"期望失败但成功: {status_code}", status_code, extract
+                try:
+                    details = resp.json()
+                except ValueError:
+                    details = resp.text
+                return (
+                    "❌",
+                    {"error": f"期望失败但成功: {status_code}", "details": details},
+                    status_code,
+                    extract,
+                )
             else:
                 try:
                     return "✅", resp.json(), status_code, extract
@@ -250,7 +283,10 @@ def put(
                     extract,
                 )
     except Exception as e:
-        return ("❌" if not should_fail else "✅"), str(e), 999, extract
+        if should_fail:
+            return "✅", {"error": "期望失败且成功", "details": str(e)}, 999, extract
+        else:
+            return "❌", {"error": "请求异常", "details": str(e)}, 999, extract
 
 
 def get(
@@ -299,11 +335,19 @@ def get(
             )
 
         if should_fail:
-            return "❌", "期望失败但成功", status_code, extract
+            return (
+                "❌",
+                {"error": "期望失败但成功", "details": json_data},
+                status_code,
+                extract,
+            )
         else:
             return "✅", json_data, status_code, extract
     except Exception as e:
-        return ("❌" if not should_fail else "✅"), str(e), 999, extract
+        if should_fail:
+            return "✅", {"error": "期望失败且成功", "details": str(e)}, 999, extract
+        else:
+            return "❌", {"error": "请求异常", "details": str(e)}, 999, extract
 
 
 def patch(
@@ -330,10 +374,18 @@ def patch(
         resp = requests.patch(url, **kwargs)
         status_code = resp.status_code
 
-        # 2xx 算成功
         if 200 <= status_code < 300:
             if should_fail:
-                return "❌", f"期望失败但成功: {status_code}", status_code, extract
+                try:
+                    details = resp.json()
+                except ValueError:
+                    details = resp.text
+                return (
+                    "❌",
+                    {"error": f"期望失败但成功: {status_code}", "details": details},
+                    status_code,
+                    extract,
+                )
             try:
                 return "✅", resp.json(), status_code, extract
             except ValueError:
@@ -359,7 +411,10 @@ def patch(
             )
 
     except Exception as e:
-        return ("❌" if not should_fail else "✅"), str(e), 999, extract
+        if should_fail:
+            return "✅", {"error": "期望失败且成功", "details": str(e)}, 999, extract
+        else:
+            return "❌", {"error": "请求异常", "details": str(e)}, 999, extract
 
 
 def option(
@@ -379,15 +434,32 @@ def option(
         resp = requests.options(url, headers=request_headers, timeout=10)
         status_code = resp.status_code
 
-        # 2xx 算成功
         if 200 <= status_code < 300:
             if should_fail:
-                return "❌", f"期望失败但成功: {status_code}", status_code, extract
+                try:
+                    details = resp.json()
+                except ValueError:
+                    details = {
+                        "allow": resp.headers.get("Allow"),
+                        "access_control_allow_methods": resp.headers.get(
+                            "Access-Control-Allow-Methods"
+                        ),
+                        "access_control_allow_headers": resp.headers.get(
+                            "Access-Control-Allow-Headers"
+                        ),
+                        "access_control_max_age": resp.headers.get(
+                            "Access-Control-Max-Age"
+                        ),
+                    }
+                return (
+                    "❌",
+                    {"error": f"期望失败但成功: {status_code}", "details": details},
+                    status_code,
+                    extract,
+                )
             try:
-                # OPTIONS 多数返回空 body，若服务端返回 JSON 也能解析
                 json_data = resp.json()
             except ValueError:
-                # 无 body 时把响应头里常用 CORS 信息带回来即可
                 json_data = {
                     "allow": resp.headers.get("Allow"),
                     "access_control_allow_methods": resp.headers.get(
@@ -422,4 +494,7 @@ def option(
             )
 
     except Exception as e:
-        return ("❌" if not should_fail else "✅"), str(e), 999, extract
+        if should_fail:
+            return "✅", {"error": "期望失败且成功", "details": str(e)}, 999, extract
+        else:
+            return "❌", {"error": "请求异常", "details": str(e)}, 999, extract
