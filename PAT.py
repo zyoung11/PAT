@@ -36,7 +36,7 @@ def print_info(title: str, info: Dict[str, Any]):
     console.print(Panel(table, title=title, border_style="green", expand=True))
 
 
-def show_result(title: str = "测试结果汇总"):
+def show_result(title: str = "测试结果汇总", save_to_md: bool = False):
     if not _test_results:
         console = Console()
         console.print("[yellow]没有测试结果可显示[/yellow]")
@@ -52,14 +52,21 @@ def show_result(title: str = "测试结果汇总"):
 
     success_count = 0
     fail_count = 0
+    results_data = []
 
-    for description, (status, is_success) in _test_results.items():
+    for description, (status, is_success, _) in _test_results.items():
         if is_success:
             table.add_row(description, f"[green]{status} 成功[/green]")
             success_count += 1
         else:
             table.add_row(description, f"[red]{status} 失败[/red]")
             fail_count += 1
+
+        # 收集结果数据用于保存到文件
+        results_data.append({
+            "测试描述": description,
+            "结果": f"{status} {'成功' if is_success else '失败'}",
+        })
 
     table.add_row("", "")
     table.add_row(
@@ -68,6 +75,41 @@ def show_result(title: str = "测试结果汇总"):
     )
 
     console.print(Panel(table, title=title, border_style="cyan", expand=True))
+
+    # 如果需要保存到文件
+    if save_to_md:
+        console.print("[green]✓ 结果已保存到 ./Result.md[/green]\n")
+        with open("./Result.md", "w", encoding="utf-8") as f:
+            f.write(f"# {title}\n\n")
+
+            # 测试描述部分
+            f.write("## 测试描述\n\n")
+            f.write("| 测试描述 | 结果 |\n")
+            f.write("|----------|------|\n")
+            for item in results_data:
+                f.write(f"| {item['测试描述']} | {item['结果']} |\n")
+            f.write("\n")
+
+            # 结果部分
+            f.write("## 结果\n\n")
+            f.write(f"- **成功**: {success_count}\n")
+            f.write(f"- **失败**: {fail_count}\n")
+            f.write("\n")
+
+            # API返回的json信息部分
+            f.write("## API返回的json信息\n\n")
+            for description, (status, is_success, content) in _test_results.items():
+                f.write(f"### {description}\n\n")
+                f.write(f"**状态**: {status} {'成功' if is_success else '失败'}\n\n")
+
+                # 保存API返回的json信息
+                if isinstance(content, (dict, list)):
+                    json_str = json.dumps(content, indent=2, ensure_ascii=False)
+                    f.write("```json\n")
+                    f.write(json_str)
+                    f.write("\n```\n\n")
+                else:
+                    f.write(f"{content}\n\n")
 
     _test_results.clear()
 
@@ -122,7 +164,7 @@ def run_test(
     console.print()
 
     is_success = status == "✅"
-    _test_results[description] = (status, is_success)
+    _test_results[description] = (status, is_success, content)  # 保存content用于后续保存到文件
 
     if not extract_paths:
         return None

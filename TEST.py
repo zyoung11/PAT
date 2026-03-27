@@ -111,4 +111,4 @@ print_info(
 )
 
 # ---------- 13. 显示测试结果汇总 ----------
-show_result()
+show_result(title="测试结果", save_to_md=True)
